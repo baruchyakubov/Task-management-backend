@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser')
 
 const app = express()
 const http = require('http').createServer(app)
+const worker = require('./worker.microService')
+worker.runWorker()
 
 // Express App Config
 app.use(cookieParser())

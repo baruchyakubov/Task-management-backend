@@ -17,25 +17,32 @@ async function query(filterBy = { txt: '' }) {
     }
 }
 
+async function getNextTask() {
+    const collection = await dbService.getCollection('task')
+    const task = await collection.find({ $and: [{ $or: [{ status: { $eq: 'new' } }, { status: { $eq: 'error' } }] }, { triesCount: { $lt: 5 } }] }).sort({ triesCount: 1, importance: -1 }).limit(1).toArray()
+    console.log(task[0]);
+    return task[0]
+}
+
 function _buildCriteria(filterBy) {
     var criteria = {}
     if (filterBy.txt) {
-      const txtCriteria = { $regex: filterBy.txt, $options: 'i' }
-      criteria = { $or: [{ title: txtCriteria }, { description: txtCriteria }] }
-    }  
+        const txtCriteria = { $regex: filterBy.txt, $options: 'i' }
+        criteria = { $or: [{ title: txtCriteria }, { description: txtCriteria }] }
+    }
     return criteria
-  }
+}
 
-async function performTask(task) {
+async function performTask(task, fromWorker = false) {
     try {
         // TODO: update task status to running and save to DB
         const id = task._id
         task.status = 'running'
         delete task._id
-        socketService.emitTo({type:'setStatusToRunning' , data:id , label:null})
+        if (!fromWorker) socketService.emitTo({ type: 'setStatusToRunning', data: id, label: null })
         task.triesCount++
         const collection = await dbService.getCollection('task')
-        await collection.updateOne({ _id: ObjectId(id) }, { $set: {...task} })
+        await collection.updateOne({ _id: ObjectId(id) }, { $set: { ...task } })
         // TODO: execute the task using: externalService.execute
         task._id = id
         await externalService.execute(task)
@@ -52,7 +59,7 @@ async function performTask(task) {
         const id = task._id
         delete task._id
         const collection = await dbService.getCollection('task')
-        await collection.updateOne({ _id: ObjectId(id) }, { $set: {...task} })
+        await collection.updateOne({ _id: ObjectId(id) }, { $set: { ...task } })
         task._id = id
         return task
     }
@@ -107,12 +114,12 @@ async function update(task) {
     }
 }
 
-
 module.exports = {
     remove,
     query,
     getById,
     add,
     update,
-    performTask
+    performTask,
+    getNextTask
 }
