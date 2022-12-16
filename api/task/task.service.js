@@ -91,6 +91,7 @@ async function remove(taskId) {
 async function add(task) {
     try {
         const collection = await dbService.getCollection('task')
+        console.log(task)
         await collection.insertOne(task)
         return task
     } catch (err) {
